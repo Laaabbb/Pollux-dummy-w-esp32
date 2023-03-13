@@ -1,9 +1,18 @@
+#include <BH1750.h>
+#include <Wire.h>
+
+BH1750 lightMeter;
+
 void setup() {
   Serial.begin(9600);
+  Wire.begin();
+  lightMeter.begin();
+  //Serial.println(F("BH1750 Test Begin"));
 }
 void loop() {
-  Serial.println("Hello World");
-  delay(1500);
-  Serial.println("Test");
-  delay(1500);
+  float lux = lightMeter.readLightLevel();
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.println(" lx");
+  delay(1000);
 }
