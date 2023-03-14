@@ -1,0 +1,2 @@
+https://pollux-dummy-with-esp32-default-rtdb.asia-southeast1.firebasedatabase.app/
+AIzaSyDUpJL2PuftH0WM7Kdz4755l3jS1Jt4wzE
