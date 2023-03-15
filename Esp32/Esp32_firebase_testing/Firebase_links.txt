@@ -1,0 +1,2 @@
+API: AIzaSyBOHSeBCviQEJHEREcpAYDAXI36tciFJlE
+DB link: https://esp32-testing-959e3-default-rtdb.asia-southeast1.firebasedatabase.app/
