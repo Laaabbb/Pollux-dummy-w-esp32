@@ -57,7 +57,7 @@ const long sendDataIntervalMillis = 10000; //--> Sends/stores data to firebase d
 // Boolean variable for sign in status.
 bool signupOK = false;
 
-int Lux;
+float Lux;
 
 void setup() {
     // initialize the OLED object
@@ -94,7 +94,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,28);
-  display.println("WiFi Connected! - " + WIFI_SSID);
+  display.println("WiFi Connected!");
   display.display();
   display.clearDisplay();
   delay(2000);
@@ -130,7 +130,7 @@ void loop() {
   if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > sendDataIntervalMillis || sendDataPrevMillis == 0)){
     sendDataPrevMillis = millis();
 
-    Lux = Serial2.readString();
+    Lux = Serial2.parseFloat();
 
     // Display Text
     display.setTextSize(1);
@@ -158,5 +158,5 @@ void loop() {
 
     //Serial.println("Message Received: ");
     //Serial.println(Serial2.readString());
-
+  }
 }
