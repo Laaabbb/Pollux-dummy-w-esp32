@@ -4,6 +4,8 @@
 #include <LiquidCrystal_I2C.h>
 
 #define DHT11_PIN 7
+#define anInput     A0        //analog feed from MQ135
+#define co2Zero     55        //calibrated CO2 0 level
 
 dht DHT;
 Adafruit_LTR390 ltr = Adafruit_LTR390();
@@ -16,6 +18,9 @@ void setup(){
 
   lcd.init();
   lcd.backlight();
+
+  
+  pinMode(anInput,INPUT);       //MQ135 analog feed set for input
 
   if ( ! ltr.begin() ) {
     Serial.println("Couldn't find LTR sensor!");
@@ -56,6 +61,12 @@ void setup(){
 }
 
 void loop(){
+  int co2now[10];        //int array for co2 readings
+  int co2raw = 0;        //int for raw value of co2
+  int co2ppm = 0;        //int for calculated ppm
+  int zzz = 0;           //int for averaging
+
+  Serial.println("====================START====================");
   int chk = DHT.read11(DHT11_PIN);
   Serial.print("Temperature = ");
   Serial.println(DHT.temperature);
@@ -69,6 +80,25 @@ void loop(){
     lcd.print("UV : ");
     lcd.print(ltr.readUVS());
   }
+
+   for (int x = 0;x<10;x++)  //samplpe co2 10x over 2 seconds
+  {                   
+    co2now[x]=analogRead(A0);
+    delay(200);
+  }
+
+  for (int x = 0;x<10;x++)  //add samples together
+  {                     
+    zzz=zzz + co2now[x];  
+  }
+  
+  co2raw = zzz/10;               //divide samples by 10
+  co2ppm = co2raw - co2Zero;     //get calculated ppm
+
+  Serial.print("AirQuality = ");
+  Serial.print(co2ppm);  // prints the value read
+  Serial.println(" PPM");
+   Serial.println("====================END====================");
 
   delay(1100);
 }
