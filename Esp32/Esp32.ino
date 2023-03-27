@@ -1,3 +1,6 @@
+/*
+  ESP32 I2C Slave Demo
+*/
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -12,7 +15,6 @@
 
 #define WIFI_SSID "Labro"
 #define WIFI_PASSWORD "OedipusElectra1993"
-//======================================== 
 
 //Provide the token generation process info.
 #include "addons/TokenHelper.h"
@@ -29,17 +31,7 @@
 // Insert RTDB URLefine the RTDB URL */
 #define DATABASE_URL "https://esp32-testing-959e3-default-rtdb.asia-southeast1.firebasedatabase.app/" 
 
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for SSD1306 display connected using I2C
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-#define RXp2 16
-#define TXp2 17
+#define slaveAddress 9  //you have to assign an 8-bit address to Slave
 
 FirebaseData fbdo;
 
@@ -59,17 +51,15 @@ bool signupOK = false;
 
 float Lux;
 
-void setup() {
-    // initialize the OLED object
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
-  }
+byte dataArray[4];
+float lux, uv, temp, humid, co2ppm = 0;
 
-  Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
-   // Clear the buffer.
-  display.clearDisplay();
+void setup()
+{
+  Wire.begin(slaveAddress);
+  Serial.begin(9600);
+  Wire.onReceive(receiveEvent);//you need to declre it in setup() to receive data from Master
+  //-----------------------------------
 
   //---------------------------------------- The process of connecting the WiFi on the ESP32 to the WiFi Router/Hotspot.
   WiFi.mode(WIFI_STA);
@@ -85,22 +75,7 @@ void setup() {
     digitalWrite(On_Board_LED, LOW);
     delay(250);
   }
-  digitalWrite(On_Board_LED, LOW);
-  Serial.println();
-  Serial.print("Successfully connected to : ");
-  Serial.println(WIFI_SSID);
-  //Serial.print("IP : ");
-  //Serial.println(WiFi.localIP());
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0,28);
-  display.println("WiFi Connected!");
-  display.display();
-  display.clearDisplay();
-  delay(2000);
-  Serial.println("---------------");
-  //---------------------------------------- 
-
+  
   // Assign the api key (required).
   config.api_key = API_KEY;
 
@@ -126,27 +101,26 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 }
-void loop() {
-  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > sendDataIntervalMillis || sendDataPrevMillis == 0)){
+
+const unsigned long eventultra = 1100;
+unsigned long previousTimeultra = 0;
+
+void loop()
+{
+  unsigned long currentTimeultra = millis();
+  if (currentTimeultra - previousTimeultra >= eventultra) {
+   if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > sendDataIntervalMillis || sendDataPrevMillis == 0)){
     sendDataPrevMillis = millis();
 
     Lux = Serial2.parseFloat();
-
-    // Display Text
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0,28);
-    display.println(Serial2.readString());
-    display.display();
-    display.clearDisplay();
-    delay(2000);
 
     Serial.println();
     Serial.println("---------------Store Data");
     digitalWrite(On_Board_LED, HIGH);
     
     // Write an Int number on the database path test/random_Float_Val.
-    if (Firebase.RTDB.setFloat(&fbdo, "Test/Lux", Lux)) {
+    //Lux
+    if (Firebase.RTDB.setFloat(&fbdo, "Test/Lux", lux)) {
       Serial.println("PASSED");
       Serial.println("PATH: " + fbdo.dataPath());
       Serial.println("TYPE: " + fbdo.dataType());
@@ -155,8 +129,83 @@ void loop() {
       Serial.println("FAILED");
       Serial.println("REASON: " + fbdo.errorReason());
     }
+    //UV
+    if (Firebase.RTDB.setFloat(&fbdo, "Test/UV", uv)) {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+    //Temp
+    if (Firebase.RTDB.setFloat(&fbdo, "Test/Temperature", temp)) {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+    //Humidity
+    if (Firebase.RTDB.setFloat(&fbdo, "Test/Humidity", humid)) {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+  }
+}
 
-    //Serial.println("Message Received: ");
-    //Serial.println(Serial2.readString());
+void receiveEvent(int howmany) //howmany = Wire.write()executed by Master
+{
+
+  //lux, 
+  uv, temp, humid, co2ppm = 0;
+
+  for(int i=0; i<howmany; i++)
+  {
+    dataArray[i] = Wire.read();
+    if(i == 0){
+      lux = dataArray[i];
+    }
+    else if(i == 1){
+      uv = dataArray[i];
+    }
+    else if(i == 2){
+      temp = dataArray[i];
+    }
+    else if(i == 3){
+      humid = dataArray[i];
+    }
+    /*else if(i == 4){
+      co2ppm = dataArray[i];
+    }
+    if(i == 0){
+      uv = dataArray[i];
+    }
+    else if(i == 1){
+      temp = dataArray[i];
+    }
+    else if(i == 2){
+      humid = dataArray[i];
+    }
+    else if(i == 3){
+      co2ppm  = dataArray[i];
+    }*/
+
+    Serial.println("===Array Start===");
+    Serial.println(lux);
+    Serial.println(uv);
+    Serial.println(temp);
+    Serial.println(humid);
+    //Serial.println(co2ppm);
+    Serial.println("===Array End===");
   }
 }

@@ -1,12 +1,23 @@
+/*
+  Arduino I2C Master
+*/
 #include "DHT.h"
 #include <BH1750.h>
 #include "Adafruit_LTR390.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+// Define Slave I2C Address
+#define slaveAddress 9
+ 
+// Define Slave answer size
+#define ANSWERSIZE 5
+
 #define DHT1PIN 7
 #define DHT1TYPE DHT11
 #define anInput     A0        //analog feed from MQ135
+//#define sda_pin     A1
+//#define scl_pin     A2
 #define co2Zero     55        //calibrated CO2 0 level
 
 DHT dht(DHT1PIN, DHT1TYPE);
@@ -15,15 +26,16 @@ Adafruit_LTR390 ltr = Adafruit_LTR390();
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-void setup(){
-  Serial.begin(115200);
+void setup()
+{
+  Serial.begin(9600);
   Wire.begin();
   lightMeter.begin();
   lcd.init();
   lcd.backlight();
   dht.begin();
-  
   pinMode(anInput,INPUT);       //MQ135 analog feed set for input
+  //--------------------------------------------------------------------
 
   if ( ! ltr.begin() ) {
     Serial.println("Couldn't find LTR sensor!");
@@ -66,37 +78,45 @@ void setup(){
 const unsigned long eventultra = 1100;
 unsigned long previousTimeultra = 0;
 
-void loop(){
+void loop()
+{
+  delay(1);
   unsigned long currentTimeultra = millis();
   int co2now[10];        //int array for co2 readings
   int co2raw = 0;        //int for raw value of co2
   int co2ppm = 0;        //int for calculated ppm
   int zzz = 0;           //int for averaging
 
-  float  temp = dht.readTemperature();
+  float temp = dht.readTemperature();
   float humid = dht.readHumidity();
   float lux = lightMeter.readLightLevel();
 
-  if (currentTimeultra - previousTimeultra >= eventultra) {
+ if (currentTimeultra - previousTimeultra >= eventultra) {
   Serial.println("====================START====================");
   Serial.print("Light: ");
   Serial.print(lux);
   Serial.println(" lx");
 
   Serial.print("Temperature = ");
-  Serial.println(temp);
+  Serial.print(temp);
+  Serial.println(" °C");
   Serial.print("Humidity = ");
-  Serial.println(humid);
+  Serial.print(humid);
+  Serial.println("%");
 
   if (ltr.newDataAvailable()) {
-    Serial.print("UV data: "); 
+    Serial.print("UV data = "); 
     Serial.println(ltr.readUVS());
-    lcd.setCursor(0, 0);
-    lcd.print("UV : ");
-    lcd.print(ltr.readUVS());
   }
 
-   for (int x = 0;x<10;x++)  //samplpe co2 10x over 2 seconds
+  float uv = ltr.readUVS();
+
+  for (int x = 0;x<10;x++)  //samplpe co2 10x over 2 seconds
+  {                   
+    co2now[x]=analogRead(A0);
+  }
+
+  for (int x = 0;x<10;x++)  //samplpe co2 10x over 2 seconds
   {                   
     co2now[x]=analogRead(A0);
   }
@@ -114,8 +134,17 @@ void loop(){
   Serial.println(" PPM");
   Serial.println("====================END====================");
 
+  byte dataArray[5] = {lux, uv, temp, humid, co2ppm};
 
-  previousTimeultra = currentTimeultra;
+  Wire.beginTransmission(slaveAddress); //address is queued for checking if the slave is present
+  for (int i=0; i<5; i++)
+  {
+    Serial.println("===Array===");
+    Wire.write(dataArray[i]);  //data bytes are queued in local buffer
+    Serial.println(dataArray[i]);
   }
+  Wire.endTransmission(); //all the above queued bytes are sent to slave on ACK handshaking
 
+   previousTimeultra = currentTimeultra;
+ }
 }
