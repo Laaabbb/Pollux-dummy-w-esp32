@@ -34,8 +34,9 @@ Adafruit_LTR390 ltr = Adafruit_LTR390();
 //Variables Initialization
 float co2now[10];        //int array for co2 readings
 float co2raw = 0.0;        //int for raw value of co2
-float co2ppm = 0.0;        //int for calculated ppm
+int co2ppm = 0.0;        //int for calculated ppm
 float zzz = 0.0;           //int for averaging
+byte c1, c2, l1, l2, u1, u2;
 
 //LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -95,15 +96,17 @@ void loop()
     Serial.println(" PPM");
     Serial.println("====================END=====================");
 
+    splitVar(lux, uv, co2ppm);
+
     //Passing data with Serial Communication (To ESP32)
-    int dataArray[5] = {lux, uv, temp, humid, co2ppm};
+    byte dataArray[8] = {temp, humid, l1, l2, u1, u2, c1, c2};
 
     Wire.beginTransmission(slaveAddress); //address is queued for checking if the slave is present
-    for (int i=0; i<5; i++)
+    for (int i=0; i<8; i++)
     {
-      Serial.println("===Array===");
+      //Serial.println("===Array===");
       Wire.write(dataArray[i]);  //data bytes are queued in local buffer
-      Serial.println(dataArray[i]);
+      //Serial.println(dataArray[i]);
     }
     Wire.endTransmission(); //all the above queued bytes are sent to slave on ACK handshaking
 
@@ -176,4 +179,17 @@ void calibrateMQ135(){
   co2raw = zzz/10;           //divide samples by 10
   co2ppm = co2raw - co2Zero;     //get calculated ppm
   return true;
+}
+void splitVar(int Var, int Var1, int Var2){
+  l1 = Var / 256;
+  l2 = Var % 256;
+
+  u1 = Var1 / 256;
+  u2 = Var1 % 256;
+
+  c1 = Var2 / 256;
+  c2 = Var2 % 256;
+  //int output = ((int)b1) * 256 + b2;
+  //return output;
+  //Serial.print(output);
 }
