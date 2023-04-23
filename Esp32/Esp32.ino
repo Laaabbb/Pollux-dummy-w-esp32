@@ -75,7 +75,7 @@ void setup()
   //==========WiFi Setup==========
   //The process of connecting the WiFi on the ESP32 to the WiFi Router/Hotspot.
   WiFiManager wm;
-  wm.resetSettings();
+  //wm.resetSettings();
 
    bool res;
     // res = wm.autoConnect(); // auto generated AP name from chipid
