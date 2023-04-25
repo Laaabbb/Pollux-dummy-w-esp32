@@ -7,6 +7,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WiFiManager.h>
+#include "time.h"
 
 #if defined(ESP32)
   #include <WiFi.h>
@@ -64,6 +65,13 @@ int value = 0;
 int dataArray[8];
 int lux, uv, temp, humid, co2;
 byte l1, l2, u1, u2, c1, c2;
+
+//Init var for time
+const char* ntpServer = "ph.pool.ntp.org";
+const long  gmtOffset_sec = 0;
+const int   daylightOffset_sec = 28800;//GMT+8:00
+char time[50];
+char date[50];
 //================================
 
 void setup()
@@ -131,6 +139,10 @@ void setup()
   //Firebase init
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+
+  // Init and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  printLocalTime();
 }
 
 void loop()
@@ -149,14 +161,25 @@ void loop()
     Serial.println("---------------Store Data");
     digitalWrite(On_Board_LED, HIGH);
 
+    getLocalTime();
     writeFirebase();
   }
 }
 
 void receiveEvent(int howmany) //howmany = Wire.write()executed by Master
 {
-  //lux,
   value = howmany;
+}
+void printLocalTime(){
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  strftime(time, sizeof(time), "%H:%M:%S", &timeinfo);
+  String asString(time);
+  strftime(date, sizeof(date), "%B %d %Y", &timeinfo);
+  String asString(date);
 }
 void writeFirebase(){
   lux, uv, temp, humid, co2 = 0;
@@ -250,6 +273,17 @@ void writeFirebase(){
 
   //Co2
   if (Firebase.RTDB.setFloat(&fbdo, "Pollux1/Carbon Dioxide", co2)) {
+    Serial.println("PASSED");
+    Serial.println("PATH: " + fbdo.dataPath());
+    Serial.println("TYPE: " + fbdo.dataType());
+  }
+  else {
+    Serial.println("FAILED");
+    Serial.println("REASON: " + fbdo.errorReason());
+  }
+
+  //time
+  if (Firebase.RTDB.setFloat(&fbdo, "Pollux1/Lux", time)) {
     Serial.println("PASSED");
     Serial.println("PATH: " + fbdo.dataPath());
     Serial.println("TYPE: " + fbdo.dataType());
