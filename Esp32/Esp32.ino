@@ -7,7 +7,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <WiFiManager.h>
-#include "time.h"
+#include "time.h" 
+//Aternative: #include <NTPClient.h>
 
 #if defined(ESP32)
   #include <WiFi.h>
@@ -36,7 +37,7 @@
 #define slaveAddress 9  //you have to assign an 8-bit address to Slave
 //================================
 
-/*===For static WiFi Cred setup===
+/*===Alternative WiFi Setup for static WiFi Cred===
 #include "Network.h"
 
 #define WIFI_SSID "YOURWIFISSIDHERE"
@@ -48,16 +49,21 @@
 FirebaseData fbdo;
 // Define firebase authentication.
 FirebaseAuth auth;
-// Definee firebase configuration.
+// Define firebase configuration.
 FirebaseConfig config;
+
+// Parent Node (to be updated in every loop)
+String parentPath;
+
+FirebaseJson json;
 //================================
 
 //========Variables init==========
-//Millis variable to send/store data to firebase database.
+//Millis variable to send/store data to firebase database
 unsigned long sendDataPrevMillis = 0;
-const long sendDataIntervalMillis = 1000; //--> Sends/stores data to firebase database every 1 second.
+const long sendDataIntervalMillis = 1000; //--> Sends/stores data to firebase database every 1 second
 
-// Boolean variable for sign in status.
+// Boolean variable for sign in status
 bool signupOK = false;
 
 int value = 0;
@@ -70,8 +76,9 @@ byte l1, l2, u1, u2, c1, c2;
 const char* ntpServer = "ph.pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 28800;//GMT+8:00
-char time[50];
-char date[50];
+char Time[50];
+char Date[50];
+int timestamp;
 //================================
 
 void setup()
@@ -142,7 +149,12 @@ void setup()
 
   // Init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  printLocalTime();
+  fetchLocalTime();
+
+  //timeClient.begin();
+  // Update database path
+  //databasePath = "/UsersData/" + uid + "/readings";
+  //databasePath = "/Pollux1/readings/"
 }
 
 void loop()
@@ -161,7 +173,7 @@ void loop()
     Serial.println("---------------Store Data");
     digitalWrite(On_Board_LED, HIGH);
 
-    getLocalTime();
+    fetchLocalTime();
     writeFirebase();
   }
 }
@@ -170,18 +182,29 @@ void receiveEvent(int howmany) //howmany = Wire.write()executed by Master
 {
   value = howmany;
 }
-void printLocalTime(){
+
+/*// Function that gets current epoch time
+unsigned long getTime() {
+  timeClient.update();
+  unsigned long now = timeClient.getEpochTime();
+  return now;
+}*/
+
+void fetchLocalTime(){
   struct tm timeinfo;
   if(!getLocalTime(&timeinfo)){
     Serial.println("Failed to obtain time");
     return;
-  }
-  strftime(time, sizeof(time), "%H:%M:%S", &timeinfo);
-  String asString(time);
-  strftime(date, sizeof(date), "%B %d %Y", &timeinfo);
-  String asString(date);
+  } 
+  strftime(Time, sizeof(Time), "%H:%M:%S", &timeinfo);
+  //String asString(time);
+  strftime(Date, sizeof(Date), "%B %d %Y", &timeinfo);
+  //String asString(date);
+  //Serial.println(Time);
+  //Serial.println(Date);
 }
-void writeFirebase(){
+
+void insertSerialCommData(){
   lux, uv, temp, humid, co2 = 0;
 
   //Write data
@@ -227,6 +250,10 @@ void writeFirebase(){
     Serial.println(co2);
     Serial.println("===Array End===");
 
+}
+
+void writeFirebase(){
+  insertSerialCommData();
   //Lux
   if (Firebase.RTDB.setFloat(&fbdo, "Pollux1/Lux", lux)) {
     Serial.println("PASSED");
@@ -282,8 +309,19 @@ void writeFirebase(){
     Serial.println("REASON: " + fbdo.errorReason());
   }
 
-  //time
-  if (Firebase.RTDB.setFloat(&fbdo, "Pollux1/Lux", time)) {
+  //Time
+  if (Firebase.RTDB.setString(&fbdo, "Pollux1/Timestamp", Time)) {
+    Serial.println("PASSED");
+    Serial.println("PATH: " + fbdo.dataPath());
+    Serial.println("TYPE: " + fbdo.dataType());
+  }
+  else {
+    Serial.println("FAILED");
+    Serial.println("REASON: " + fbdo.errorReason());
+  }
+
+  //Date
+  if (Firebase.RTDB.setString(&fbdo, "Pollux1/Date", Date)) {
     Serial.println("PASSED");
     Serial.println("PATH: " + fbdo.dataPath());
     Serial.println("TYPE: " + fbdo.dataType());
@@ -293,3 +331,19 @@ void writeFirebase(){
     Serial.println("REASON: " + fbdo.errorReason());
   }
 }
+
+/*void writeFirebase1(){
+    insertSerialCommData()
+  //Get current timestamp
+    timestamp = getTime();
+    Serial.print ("time: ");
+    Serial.println (timestamp);
+
+    parentPath= databasePath + "/" + String(timestamp);
+
+    json.set(tempPath.c_str(), String(bme.readTemperature()));
+    json.set(humPath.c_str(), String(bme.readHumidity()));
+    json.set(presPath.c_str(), String(bme.readPressure()/100.0F));
+    json.set(timePath, String(timestamp));
+    Serial.printf("Set json... %s\n", Firebase.RTDB.setJSON(&fbdo, parentPath.c_str(), &json) ? "ok" : fbdo.errorReason().c_str());
+}*/
