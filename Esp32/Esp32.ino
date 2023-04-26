@@ -66,8 +66,8 @@ const long sendDataIntervalMillis = 1000; //--> Sends/stores data to firebase da
 // Boolean variable for sign in status
 bool signupOK = false;
 
+//Global Variables
 int value = 0;
-
 int dataArray[8];
 int lux, uv, temp, humid, co2;
 byte l1, l2, u1, u2, c1, c2;
@@ -107,7 +107,7 @@ void setup()
     }
   //================================
 
-  /*For static WiFi setup
+  /*Alternative for static WiFi setup
   WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.println("---------------Connection");
